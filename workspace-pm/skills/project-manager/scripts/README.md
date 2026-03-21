@@ -24,9 +24,7 @@ Review 内容记录在每个脚本的注释块中，格式如下：
 
 ## 读取类脚本（无副作用）
 
-| 脚本 | 用途 |
-|------|------|
-| `get-reminder-history.mjs` | 查看提醒历史和统计 |
+无（已合并到其他脚本）
 
 ## 写入类脚本（修改数据）
 
@@ -35,15 +33,16 @@ Review 内容记录在每个脚本的注释块中，格式如下：
 | `project.mjs` | 项目 CRUD + 状态概览（add/update/list/archive/status） |
 | `schedule.mjs` | 日程 CRUD + 智能分组（add/update/delete/list） |
 | `reminder.mjs` | 提醒 CRUD（add/delete/list） |
-| `record-feedback.mjs` | 记录提醒反馈 |
+| `reminder-history.mjs` | 提醒历史查看 + 反馈记录（list/feedback） |
 | `send-reminders.mjs` | 发送提醒到飞书（核心） |
 
 ## Review 进度
 
 - [x] get-schedules.mjs → 已合并到 schedule.mjs
-- [x] get-reminder-history.mjs
+- [x] get-reminder-history.mjs → 已合并到 reminder-history.mjs
 - [x] project.mjs
 - [x] schedule.mjs（含 get-schedules 功能）
 - [x] reminder.mjs（合并 add-pending/add-recurring/delete-recurring/get-reminders/mark-sent）
-- [ ] record-feedback.mjs
+- [x] record-feedback.mjs → 已合并到 reminder-history.mjs
+- [x] reminder-history.mjs（合并 get-reminder-history + record-feedback）
 - [x] send-reminders.mjs
