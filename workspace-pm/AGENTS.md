@@ -37,7 +37,8 @@
 | 新增提醒 | `node {baseDir}/scripts/reminder.mjs --action add --time "YYYY-MM-DD HH:mm" --content "内容"` |
 | 删除提醒 | `node {baseDir}/scripts/reminder.mjs --action delete --id "rm-xxx"` |
 | 查看提醒 | `node {baseDir}/scripts/reminder.mjs --action list` |
-| 提醒反馈 | `node {baseDir}/scripts/record-feedback.mjs --action feedback --id "rm-xxx" --type positive\|negative\|neutral\|ignored [--comment "评论"]` |
+| 提醒历史 | `node {baseDir}/scripts/reminder-history.mjs [--action list]` |
+| 提醒反馈 | `node {baseDir}/scripts/reminder-history.mjs --action feedback --id "rm-xxx" --type positive\|negative\|neutral\|ignored [--comment "评论"]` |
 
 ## 工作方式
 
@@ -49,7 +50,7 @@
 4. **归档项目**：调用 `project.mjs --action archive`，项目不会删除只是隐藏
 5. **日程记录**：解析时间信息，调用 `schedule.mjs --action add`（带 `--raw` 保留原始语义）
 6. **日程更新**：用户纠正时间时，调用 `schedule.mjs --action update`
-7. **提醒反馈**：用户评价提醒效果时，调用 `record-feedback.mjs --action feedback`
+7. **提醒反馈**：用户评价提醒效果时，调用 `reminder-history.mjs --action feedback`
 
 ## 注意事项
 
