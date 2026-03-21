@@ -1,0 +1,31 @@
+{
+  "projects": [
+    {
+      "id": "proj-1774004873073-ybax",
+      "name": "A2L编辑工具",
+      "description": "编辑A2L的工具，基本开发完成。待处理：用户反馈的bug未修复，新功能未测试。",
+      "status": "active",
+      "createdAt": "2026-03-20T11:07:53.073Z",
+      "updatedAt": "2026-03-20T11:07:53.073Z",
+      "note": ""
+    },
+    {
+      "id": "proj-1774005963811-5osu",
+      "name": "小钟Agent（智能日程管家）",
+      "description": "持续开发项目进度管理Agent，目标打造智能日程管家。当前阶段：基础功能搭建中。",
+      "status": "active",
+      "createdAt": "2026-03-20T11:26:03.811Z",
+      "updatedAt": "2026-03-20T11:26:03.811Z",
+      "note": ""
+    },
+    {
+      "id": "proj-1774006084985-r9u1",
+      "name": "Agent工作流方案",
+      "description": "设计agent工作流方案，目前仅整理了思路，处于早期阶段。",
+      "status": "active",
+      "createdAt": "2026-03-20T11:28:04.985Z",
+      "updatedAt": "2026-03-20T11:28:04.985Z",
+      "note": ""
+    }
+  ]
+}

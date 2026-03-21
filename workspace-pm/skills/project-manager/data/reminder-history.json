@@ -1,0 +1,10 @@
+{
+  "history": [],
+  "stats": {
+    "totalSent": 0,
+    "totalResponded": 0,
+    "avgResponseTime": null,
+    "positiveCount": 0,
+    "negativeCount": 0
+  }
+}
