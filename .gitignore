@@ -1,9 +1,14 @@
 # User data
-workspace-pm/data/projects.json
-workspace-pm/data/schedules.json
-workspace-pm/data/reminders.json
-workspace-pm/data/user-preferences.json
-workspace-pm/data/*.bak.*
+workspace-pm/skills/project-manager/data/projects.json
+workspace-pm/skills/project-manager/data/schedules.json
+workspace-pm/skills/project-manager/data/reminders.json
+workspace-pm/skills/project-manager/data/user-preferences.json
+workspace-pm/skills/project-manager/data/*.bak.*
+workspace-pm/skills/project-manager/data/reminder-history.json
+workspace-pm/skills/project-manager/data/send-log.json
+
+# Secrets
+workspace-pm/skills/project-manager/data/feishu-keys.json
 
 # OS
 .DS_Store

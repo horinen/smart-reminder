@@ -1,19 +1,45 @@
 #!/usr/bin/env node
 
+/**
+ * === Script Review ===
+ * 
+ * 功能: 发送提醒到飞书（核心脚本，由 cron 定时调用）
+ * 
+ * 输入:
+ *   - 无参数（自动检查 reminders.json）
+ * 
+ * 输出:
+ *   - stdout: 发送日志
+ *   - 飞书消息: 发送提醒内容
+ * 
+ * 数据流:
+ *   - 读取 reminders.json → 检查到期提醒 → 发送飞书 → 写入 history → 删除已发送
+ * 
+ * 静默时段:
+ *   - 22:00-08:00 不发送
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
-const pendingFile = path.join(dataDir, 'pending-reminders.json');
-const recurringFile = path.join(dataDir, 'recurring-reminders.json');
+const remindersFile = path.join(dataDir, 'reminders.json');
 const historyFile = path.join(dataDir, 'reminder-history.json');
 const logFile = path.join(dataDir, 'send-log.json');
+const keysFile = path.join(dataDir, 'feishu-keys.json');
 
-const FEISHU_APP_ID = 'cli_a931499b31e11cd4';
-const FEISHU_APP_SECRET = 'b2gfqcAjmlDgmTcpOAhEkda1KgN1TYkW';
-const FEISHU_RECIPIENT = 'ou_60ea9516980e06b683fc1b8d3ae10ab2';
+let FEISHU_CONFIG = null;
+function loadFeishuConfig() {
+  if (!FEISHU_CONFIG) {
+    if (!fs.existsSync(keysFile)) {
+      throw new Error(`飞书配置文件不存在: ${keysFile}`);
+    }
+    FEISHU_CONFIG = JSON.parse(fs.readFileSync(keysFile, 'utf-8'));
+  }
+  return FEISHU_CONFIG;
+}
 
 let feishuAccessToken = null;
 
@@ -43,34 +69,6 @@ function isInQuietHours(now) {
   return shanghaiHour >= 22 || shanghaiHour < 8;
 }
 
-function isTimeToSend(recurring, now) {
-  const [hour, minute] = recurring.time.split(':').map(Number);
-  const nowHour = now.getHours();
-  const nowMinute = now.getMinutes();
-  
-  if (nowHour !== hour || nowMinute < minute || nowMinute >= minute + 15) {
-    return false;
-  }
-  
-  const days = recurring.days || ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-  const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-  const today = dayNames[now.getDay()];
-  
-  if (!days.includes(today)) {
-    return false;
-  }
-  
-  if (recurring.lastSent) {
-    const lastSentDate = new Date(recurring.lastSent).toDateString();
-    const todayDate = now.toDateString();
-    if (lastSentDate === todayDate) {
-      return false;
-    }
-  }
-  
-  return true;
-}
-
 async function getFeishuAccessToken() {
   if (feishuAccessToken) {
     return feishuAccessToken;
@@ -83,8 +81,8 @@ async function getFeishuAccessToken() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        app_id: FEISHU_APP_ID,
-        app_secret: FEISHU_APP_SECRET
+        app_id: loadFeishuConfig().appId,
+        app_secret: loadFeishuConfig().appSecret
       })
     });
     
@@ -113,7 +111,7 @@ async function sendFeishuMessage(content) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        receive_id: FEISHU_RECIPIENT,
+        receive_id: loadFeishuConfig().recipient,
         msg_type: 'text',
         content: JSON.stringify({ text: content })
       })
@@ -132,9 +130,8 @@ async function sendFeishuMessage(content) {
   }
 }
 
-function markAsSent(reminderId, isRecurring) {
-  const sourceFile = isRecurring ? recurringFile : pendingFile;
-  const reminders = readJsonFile(sourceFile, []);
+function markAsSent(reminderId) {
+  const reminders = readJsonFile(remindersFile, []);
   
   const index = reminders.findIndex(r => r.id === reminderId);
   if (index === -1) {
@@ -154,20 +151,14 @@ function markAsSent(reminderId, isRecurring) {
     content: reminder.content,
     scheduledTime: reminder.time,
     sentAt: new Date().toISOString(),
-    feedback: null,
-    recurring: isRecurring
+    feedback: null
   });
   
   history.stats.totalSent++;
   writeJsonFile(historyFile, history);
   
-  if (isRecurring) {
-    reminders[index].lastSent = new Date().toISOString();
-    writeJsonFile(sourceFile, reminders);
-  } else {
-    reminders.splice(index, 1);
-    writeJsonFile(sourceFile, reminders);
-  }
+  reminders.splice(index, 1);
+  writeJsonFile(remindersFile, reminders);
   
   return true;
 }
@@ -192,21 +183,14 @@ async function main() {
     return;
   }
   
-  const pending = readJsonFile(pendingFile, []);
-  const recurring = readJsonFile(recurringFile, []);
+  const reminders = readJsonFile(remindersFile, []);
   
   const toSend = [];
   
-  for (const reminder of pending) {
+  for (const reminder of reminders) {
     const reminderTime = new Date(reminder.time);
     if (reminderTime <= now) {
-      toSend.push({ ...reminder, isRecurring: false });
-    }
-  }
-  
-  for (const reminder of recurring) {
-    if (isTimeToSend(reminder, now)) {
-      toSend.push({ ...reminder, isRecurring: true });
+      toSend.push(reminder);
     }
   }
   
@@ -223,7 +207,7 @@ async function main() {
     try {
       log(`发送提醒: ${reminder.id} - ${reminder.content.substring(0, 30)}...`);
       await sendFeishuMessage(reminder.content);
-      markAsSent(reminder.id, reminder.isRecurring);
+      markAsSent(reminder.id);
       
       results.push({
         id: reminder.id,
@@ -247,7 +231,7 @@ async function main() {
   appendToLog({
     startTime,
     endTime: new Date().toISOString(),
-    totalChecked: pending.length + recurring.length,
+    totalChecked: reminders.length,
     toSendCount: toSend.length,
     results
   });
