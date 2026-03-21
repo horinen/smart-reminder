@@ -45,16 +45,10 @@ metadata:
 | 脚本 | 用途 |
 |------|------|
 | `send-reminders.mjs` | 发送提醒（宿主机 cron 调用） |
-| `get-projects.mjs` | 获取项目状态 |
-| `get-schedules.mjs` | 获取用户日程 |
-| `get-reminder-history.mjs` | 获取提醒效果 |
-| `get-reminders.mjs` | 获取当前提醒（待发送 + 持久） |
-| `add-pending-reminder.mjs` | 新增临时提醒 |
-| `add-recurring-reminder.mjs` | 新增持久提醒 |
-| `delete-recurring-reminder.mjs` | 删除持久提醒 |
-| `mark-reminder-sent.mjs` | 标记已发送 |
-| `add-project.mjs` | 管理/查看项目 |
-| `add-schedule.mjs` | 管理/查看日程 |
+| `reminder.mjs` | 提醒 CRUD（add/delete/list） |
+| `get-reminder-history.mjs` | 获取提醒效果统计 |
+| `project.mjs` | 项目 CRUD + 状态概览 |
+| `schedule.mjs` | 日程 CRUD + 智能分组 |
 | `record-feedback.mjs` | 记录用户反馈 |
 
 ## Setup

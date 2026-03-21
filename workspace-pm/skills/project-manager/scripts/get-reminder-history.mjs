@@ -1,5 +1,20 @@
 #!/usr/bin/env node
 
+/**
+ * === Script Review ===
+ * 
+ * 功能: 查看提醒历史和统计（近7天）
+ * 
+ * 输入:
+ *   - 无参数
+ * 
+ * 输出:
+ *   - stdout: 发送统计、响应时间、最近5条记录
+ * 
+ * 数据源:
+ *   - reminder-history.json
+ */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
