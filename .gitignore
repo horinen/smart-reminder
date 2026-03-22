@@ -9,6 +9,7 @@ workspace-pm/skills/project-manager/data/send-log.json
 
 # Secrets
 workspace-pm/skills/project-manager/data/feishu-keys.json
+workspace-pm/skills/project-manager/data/feishu-calendar.json
 
 # OS
 .DS_Store

@@ -36,7 +36,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
-const keysFile = path.join(dataDir, 'feishu-keys.json');
+const keysFile = path.join(dataDir, 'feishu-calendar.json');
 
 const FEISHU_CREATE_EVENT_URL = 'https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events';
 const FEISHU_UPDATE_EVENT_URL = 'https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}';
@@ -61,7 +61,7 @@ function toTimestamp(date) {
 
 function loadConfig() {
   if (!fs.existsSync(keysFile)) {
-    throw new Error(`飞书配置文件不存在: ${keysFile}`);
+    throw new Error(`飞书日历配置文件不存在: ${keysFile}\n请复制 feishu-calendar.example.json 为 feishu-calendar.json 并填写配置`);
   }
   return JSON.parse(fs.readFileSync(keysFile, 'utf-8'));
 }
