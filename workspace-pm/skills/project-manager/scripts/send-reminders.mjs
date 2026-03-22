@@ -22,6 +22,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { ensureValidCalendarToken } from './lib/feishu-calendar-token.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
@@ -177,6 +178,16 @@ async function main() {
   const startTime = now.toISOString();
   
   log('开始检查提醒...');
+  
+  try {
+    const calendarPath = path.join(dataDir, 'feishu-calendar.json');
+    if (fs.existsSync(calendarPath)) {
+      await ensureValidCalendarToken();
+      log('日历 token 刷新成功');
+    }
+  } catch (e) {
+    log(`WARN: 日历 token 刷新失败（不影响提醒发送）: ${e.message}`);
+  }
   
   if (isInQuietHours(now)) {
     log('静默时段 (22:00-08:00)，跳过发送');
