@@ -3,7 +3,7 @@
 /**
  * === Script Review ===
  * 
- * 功能: 日程管理 - 新增/更新/删除/列出日程（已合并 get-schedules.mjs）
+ * 功能: 日程管理 - 新增/更新/删除/列出日程（飞书日历作为主存储）
  * 
  * 输入:
  *   --action add|list|update|delete
@@ -11,7 +11,7 @@
  *   add:
  *     --title (必须) 日程标题
  *     --start (必须) 开始时间 ISO 格式
- *     --end (可选) 结束时间，默认等于 start
+ *     --end (可选) 结束时间，默认 start 后1小时
  *     --type (可选) important|routine|free，默认 routine
  *     --raw (可选) 原始自然语言表达
  *   
@@ -29,7 +29,19 @@
  * 
  * 输出:
  *   - stdout: 操作结果消息
- *   - 文件: ../data/schedules.json
+ *   - 文件: ../data/schedules.json（只读缓存，由 feishu-calendar-read sync 更新）
+ * 
+ * 数据格式:
+ *   {
+ *     "id": "feishu-xxx",
+ *     "title": "日程标题",
+ *     "startTime": "2026-03-21T10:00:00",
+ *     "endTime": "2026-03-21T11:00:00",
+ *     "type": "important|routine|free",
+ *     "raw": "原始表达",
+ *     "feishuEventId": "原始飞书事件ID",
+ *     "syncedAt": "同步时间"
+ *   }
  * 
  * 测试:
  *   - [x] list 空数据
@@ -45,22 +57,16 @@
  *   - [x] delete 正常
  *   - [x] delete 不存在的 id
  *   - [x] 无效 action
- * 
- * 问题:
- *   - 缺少 type 值验证，无效值会直接存储
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
 const schedulesFile = path.join(dataDir, 'schedules.json');
-
-function generateId() {
-  return `evt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-}
 
 function formatDate(dateStr) {
   const date = new Date(dateStr);
@@ -90,6 +96,27 @@ function isThisWeek(dateStr) {
   const weekEnd = new Date(now);
   weekEnd.setDate(weekEnd.getDate() + 7);
   return date >= now && date <= weekEnd;
+}
+
+function loadSchedules() {
+  if (!fs.existsSync(schedulesFile)) {
+    return { events: [] };
+  }
+  return JSON.parse(fs.readFileSync(schedulesFile, 'utf-8'));
+}
+
+function callFeishuWrite(action, params) {
+  const args = Object.entries(params)
+    .filter(([k, v]) => v !== undefined)
+    .map(([k, v]) => `--${k} "${v}"`)
+    .join(' ');
+  const script = path.join(__dirname, 'feishu-calendar-write.mjs');
+  execSync(`node "${script}" --action ${action} ${args}`, { encoding: 'utf-8' });
+}
+
+function syncFromFeishu() {
+  const script = path.join(__dirname, 'feishu-calendar-read.mjs');
+  execSync(`node "${script}" --action sync`, { encoding: 'utf-8' });
 }
 
 function listSmart(events) {
@@ -161,6 +188,7 @@ function listRaw(events) {
   console.log('## 日程列表\n');
   for (const e of events) {
     const typeMap = { important: '🔴 重要', routine: '🔵 常规', free: '🟢 空闲' };
+    
     console.log(`- **${e.title}** (${e.id})`);
     console.log(`  - 类型: ${typeMap[e.type] || e.type}`);
     console.log(`  - 时间: ${e.startTime} ~ ${e.endTime}`);
@@ -209,49 +237,61 @@ function main() {
       process.exit(1);
     }
     
-    const event = {
-      id: generateId(),
-      title: params.title,
-      startTime: params.start,
-      endTime: params.end || params.start,
-      type: params.type || 'routine',
-      raw: params.raw || '',
-      createdAt: new Date().toISOString()
-    };
-    
-    data.events.push(event);
-    fs.writeFileSync(schedulesFile, JSON.stringify(data, null, 2));
-    
-    console.log(`✅ 已新增日程: ${event.title} (${event.id})`);
+    try {
+      callFeishuWrite('create', {
+        title: params.title,
+        start: params.start,
+        end: params.end,
+        type: params.type,
+        desc: params.raw
+      });
+      
+      syncFromFeishu();
+      
+      console.log(`✅ 已新增日程到飞书日历: ${params.title}`);
+    } catch (e) {
+      console.error(`❌ 新增日程失败: ${e.message}`);
+      process.exit(1);
+    }
     return;
   }
   
   if (params.action === 'delete') {
     if (!params.id) {
-      console.error('用法: node schedule.mjs --action delete --id "event-id"');
+      console.error('用法: node schedule.mjs --action delete --id "evt-xxx"');
       process.exit(1);
     }
     
-    const index = data.events.findIndex(e => e.id === params.id);
-    if (index === -1) {
+    const schedules = loadSchedules();
+    const event = schedules.events.find(e => e.id === params.id);
+    if (!event) {
       console.error(`❌ 未找到日程: ${params.id}`);
       process.exit(1);
     }
     
-    const deleted = data.events.splice(index, 1)[0];
-    fs.writeFileSync(schedulesFile, JSON.stringify(data, null, 2));
-    
-    console.log(`✅ 已删除日程: ${deleted.title}`);
+    try {
+      callFeishuWrite('delete', {
+        'event-id': event.feishuEventId
+      });
+      
+      syncFromFeishu();
+      
+      console.log(`✅ 已删除飞书日历日程: ${event.title}`);
+    } catch (e) {
+      console.error(`❌ 删除日程失败: ${e.message}`);
+      process.exit(1);
+    }
     return;
   }
   
   if (params.action === 'update') {
     if (!params.id) {
-      console.error('用法: node schedule.mjs --action update --id "event-id" [--title "标题"] [--start "ISO时间"] [--end "ISO时间"] [--type important|routine|free] [--raw "原始表达"]');
+      console.error('用法: node schedule.mjs --action update --id "evt-xxx" [--title "标题"] [--start "ISO时间"] [--end "ISO时间"] [--type important|routine|free] [--raw "原始表达"]');
       process.exit(1);
     }
     
-    const event = data.events.find(e => e.id === params.id);
+    const schedules = loadSchedules();
+    const event = schedules.events.find(e => e.id === params.id);
     if (!event) {
       console.error(`❌ 未找到日程: ${params.id}`);
       process.exit(1);
@@ -263,20 +303,32 @@ function main() {
       process.exit(1);
     }
     
-    if (params.title) event.title = params.title;
-    if (params.start) event.startTime = params.start;
-    if (params.end) event.endTime = params.end;
-    if (params.type) event.type = params.type;
-    if (params.raw) event.raw = params.raw;
-    event.updatedAt = new Date().toISOString();
-    
-    fs.writeFileSync(schedulesFile, JSON.stringify(data, null, 2));
-    
-    console.log(`✅ 已更新日程: ${event.title} (${event.id})`);
+    try {
+      callFeishuWrite('update', {
+        'event-id': event.feishuEventId,
+        title: params.title,
+        start: params.start,
+        end: params.end,
+        type: params.type,
+        desc: params.raw
+      });
+      
+      syncFromFeishu();
+      
+      console.log(`✅ 已更新飞书日历日程: ${params.title || event.title}`);
+    } catch (e) {
+      console.error(`❌ 更新日程失败: ${e.message}`);
+      process.exit(1);
+    }
     return;
   }
   
   console.error('用法: node schedule.mjs --action add|list|update|delete ...');
+  console.error('');
+  console.error('add:    --title "标题" --start "ISO时间" [--end "ISO时间"] [--type important|routine|free] [--raw "原始表达"]');
+  console.error('list:   [--format smart|raw]');
+  console.error('update: --id "evt-xxx" [--title "标题"] [--start "ISO时间"] [--end "ISO时间"] [--type important|routine|free] [--raw "原始表达"]');
+  console.error('delete: --id "evt-xxx"');
   process.exit(1);
 }
 
