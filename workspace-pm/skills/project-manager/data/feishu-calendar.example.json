@@ -1,5 +1,9 @@
 {
   "appId": "your-feishu-app-id",
   "appSecret": "your-feishu-app-secret",
-  "calendarToken": null
+  "calendarToken": null,
+  "bitableAppToken": "your-bitable-app-token",
+  "bitableProjectTableId": "tblProjects",
+  "bitableDeliverableTableId": "tblDeliverables",
+  "bitableWorklogTableId": "tblWorkLogs"
 }
