@@ -43,7 +43,7 @@ const FEISHU_AUTH_URL = 'https://open.feishu.cn/open-apis/authen/v1/authorize';
 const FEISHU_TOKEN_URL = 'https://open.feishu.cn/open-apis/authen/v1/oidc/access_token';
 const FEISHU_REFRESH_URL = 'https://open.feishu.cn/open-apis/authen/v1/oidc/refresh_access_token';
 
-const SCOPES = ['calendar:calendar:readonly', 'calendar:calendar'];
+const SCOPES = ['calendar:calendar:readonly', 'calendar:calendar', 'bitable:app'];
 
 function loadConfig() {
   if (!fs.existsSync(keysFile)) {

@@ -156,9 +156,7 @@ AI：【上周工作总结】
 
 | 权限 | 说明 |
 |------|------|
-| `bitable:app` | 获取多维表格信息 |
-| `bitable:app:readonly` | 读取多维表格 |
-| `bitable:record` | 编辑记录 |
+| `bitable:app` | 查看、评论、编辑和管理多维表格 |
 
 ### 脚本设计
 

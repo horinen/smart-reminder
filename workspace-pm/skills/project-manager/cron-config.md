@@ -93,6 +93,7 @@ docker exec openclaw-openclaw-gateway-1 node dist/index.js cron add \
    - 避免频繁打扰
 
 完成后输出简要总结。" \
+  --no-deliver \
   --light-context
 ```
 
@@ -163,4 +164,5 @@ docker exec openclaw-openclaw-gateway-1 node dist/index.js cron add \
 
 ## 变更历史
 
+- 2026-03-22：统合学习任务添加 `--no-deliver`，避免飞书权限问题
 - 2026-03-21：发送提醒任务改为纯脚本方案（详见 `docs/pure-script-reminder.md`）
