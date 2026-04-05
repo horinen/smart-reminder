@@ -7,21 +7,29 @@
  * 
  * 输入:
  *   --action: add | list | update | get
- *   --name: 成果物名称（add 必填）
- *   --project: 项目 ID 或名称（add 可选）
- *   --status: 状态 pending|in_progress|done（add/update 可选）
- *   --desc: 描述（add 可选）
- *   --id: 记录 ID（update/get 必填）
+ * 
+ * 各 action 参数:
+ * 
+ *   add:
+ *     --name "成果物名"               必填
+ *     --project "项目名|ID"           可选，按名称或 ID 关联项目
+ *     --status pending|in_progress|done  可选，默认 pending
+ *     --desc "描述"                   可选
+ * 
+ *   list:
+ *     --status pending|in_progress|done  可选，不过滤则显示全部
+ * 
+ *   update:
+ *     --id "记录ID" 或 --name "成果物名"  二选一定位成果物
+ *     --new-name "新名称"              可选，重命名
+ *     --status pending|in_progress|done  可选，done 时自动写入完成时间
+ *     --desc "描述"                   可选
+ * 
+ *   get:
+ *     --id "记录ID" 或 --name "成果物名"  二选一定位成果物
  * 
  * 输出:
  *   stdout: 操作结果（Markdown 格式）
- * 
- * 表字段映射:
- *   名称 -> name (text)
- *   项目 -> project (link to Projects)
- *   状态 -> status (singleSelect: pending/in_progress/done)
- *   完成时间 -> completedAt (date)
- *   描述 -> description (multiLineText)
  */
 
 import { 
@@ -29,9 +37,10 @@ import {
   createRecord, 
   updateRecord,
   parseFieldValue,
-  formatFieldValue
+  formatFieldValue,
+  getDeliverableTableId,
+  getProjectTableId
 } from './lib/feishu-bitable.mjs';
-import { loadConfig } from './lib/feishu-calendar-token.mjs';
 
 const STATUS_MAP = {
   pending: '⏳ 待开始',
@@ -40,16 +49,15 @@ const STATUS_MAP = {
 };
 
 function getTableId() {
-  const config = loadConfig();
-  if (!config.bitableDeliverableTableId) {
-    throw new Error('未配置成果物表 ID，请在 feishu-calendar.json 中添加 bitableDeliverableTableId 字段');
-  }
-  return config.bitableDeliverableTableId;
+  return getDeliverableTableId();
 }
 
-function getProjectTableId() {
-  const config = loadConfig();
-  return config.bitableProjectTableId;
+function getProjectTableIdInternal() {
+  try {
+    return getProjectTableId();
+  } catch {
+    return null;
+  }
 }
 
 function parseArgs() {
@@ -88,7 +96,7 @@ function parseRecord(record) {
 }
 
 async function findProjectId(projectNameOrId) {
-  const projectTableId = getProjectTableId();
+  const projectTableId = getProjectTableIdInternal();
   if (!projectTableId) {
     throw new Error('未配置项目表 ID');
   }

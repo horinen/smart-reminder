@@ -1,0 +1,11 @@
+{
+  "bitable": {
+    "appToken": "",
+    "tables": {
+      "project": "",
+      "deliverable": "",
+      "worklog": ""
+    }
+  },
+  "calendarToken": null
+}

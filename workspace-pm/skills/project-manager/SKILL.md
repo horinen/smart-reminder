@@ -20,6 +20,9 @@ metadata:
 - 用户说"记录项目"、"查看进度"、"/进度"
 - 用户反馈日程时间（"实际是下午3点"）
 - 用户评价提醒效果（"这个时间提醒很好"）
+- **成果物相关**：用户提到"成果物"、"交付物"、"里程碑"
+- **工作记录**：用户说"刚做完xxx"、"花了x小时"、"今天做了"
+- **报告生成**：用户说"周报"、"月报"、"上周干了什么"
 - **Cron 任务**：统合学习（每天2次）
 
 ## When NOT to Use
@@ -46,21 +49,23 @@ metadata:
 |------|------|
 | `send-reminders.mjs` | 发送提醒（宿主机 cron 调用） |
 | `reminder.mjs` | 提醒 CRUD（add/delete/list） |
-| `get-reminder-history.mjs` | 获取提醒效果统计 |
-| `project.mjs` | 项目 CRUD + 状态概览 |
+| `reminder-history.mjs` | 提醒历史与反馈 |
 | `schedule.mjs` | 日程 CRUD + 智能分组 |
-| `record-feedback.mjs` | 记录用户反馈 |
+| `feishu-calendar-auth.mjs` | 飞书日历授权 |
+| `feishu-calendar-read.mjs` | 同步飞书日历 |
+| `feishu-calendar-write.mjs` | 写入飞书日历 |
+| `feishu-bitable-project.mjs` | 项目 CRUD（飞书多维表格） |
+| `feishu-bitable-deliverable.mjs` | 成果物 CRUD（飞书多维表格） |
+| `feishu-bitable-worklog.mjs` | 工作记录 + 周报/月报（飞书多维表格） |
+| `feishu-bitable-init.mjs` | 初始化飞书多维表格配置 |
 
 ## Setup
 
 1. 确保 Node.js 18+ 已安装
-2. 首次使用时，脚本会自动创建 `skills/project-manager/data/` 目录和 JSON 文件
-3. 无需额外配置
+2. 完成飞书日历授权（运行 `feishu-calendar-auth.mjs`）
+3. 创建飞书多维表格（运行 `feishu-bitable-init.mjs --action init`，自动写入 `feishu-config.json`）
+4. 无需额外配置
 
 ## Cron 配置
 
 查看 `cron-config.md` 获取定时任务配置详情。
-
-## 纯脚本方案
-
-详见 `docs/pure-script-reminder.md`。

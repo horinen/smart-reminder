@@ -7,33 +7,42 @@
  * 
  * 输入:
  *   --action: add | list | update | get
- *   --name: 项目名称（add/update 必填）
- *   --category: 分类 work|personal|learning（add 可选，默认 work）
- *   --desc: 描述（add 可选）
- *   --deadline: 截止日期 YYYY-MM-DD（add/update 可选）
- *   --status: 状态 active|paused|completed|archived（update 可选）
- *   --note: 备注（add/update 可选）
- *   --id: 记录 ID（update/get 必填）
+ * 
+ * 各 action 参数:
+ * 
+ *   add:
+ *     --name "项目名"              必填
+ *     --category work|personal|learning  可选，默认 work
+ *     --desc "描述"                可选
+ *     --deadline YYYY-MM-DD        可选
+ *     --note "备注"                可选
+ * 
+ *   list:
+ *     --status active|paused|completed|archived  可选，默认排除 archived
+ * 
+ *   update:
+ *     --id "记录ID" 或 --name "项目名"  二选一定位项目
+ *     --new-name "新名称"           可选，重命名
+ *     --category work|personal|learning  可选
+ *     --desc "描述"                可选
+ *     --deadline YYYY-MM-DD        可选
+ *     --status active|paused|completed|archived  可选
+ *     --note "备注"                可选
+ * 
+ *   get:
+ *     --id "记录ID" 或 --name "项目名"  二选一定位项目
  * 
  * 输出:
  *   stdout: 操作结果（Markdown 格式）
- * 
- * 表字段映射:
- *   名称 -> name (text)
- *   分类 -> category (singleSelect: work/personal/learning)
- *   描述 -> description (multiLineText)
- *   截止日期 -> deadline (date)
- *   状态 -> status (singleSelect: active/paused/completed/archived)
- *   备注 -> note (multiLineText)
  */
 
 import { 
   listRecords, 
   createRecord, 
   updateRecord,
-  parseFieldValue 
+  parseFieldValue,
+  getProjectTableId
 } from './lib/feishu-bitable.mjs';
-import { loadConfig } from './lib/feishu-calendar-token.mjs';
 
 const STATUS_MAP = {
   active: '🟢 活跃',
@@ -49,11 +58,7 @@ const CATEGORY_MAP = {
 };
 
 function getTableId() {
-  const config = loadConfig();
-  if (!config.bitableProjectTableId) {
-    throw new Error('未配置项目表 ID，请在 feishu-calendar.json 中添加 bitableProjectTableId 字段');
-  }
-  return config.bitableProjectTableId;
+  return getProjectTableId();
 }
 
 function parseArgs() {

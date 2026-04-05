@@ -22,25 +22,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ensureValidCalendarToken } from './lib/feishu-calendar-token.mjs';
+import { ensureValidCalendarToken, secretRequire } from './lib/feishu-calendar-token.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
 const remindersFile = path.join(dataDir, 'reminders.json');
 const historyFile = path.join(dataDir, 'reminder-history.json');
 const logFile = path.join(dataDir, 'send-log.json');
-const keysFile = path.join(dataDir, 'feishu-keys.json');
-
-let FEISHU_CONFIG = null;
-function loadFeishuConfig() {
-  if (!FEISHU_CONFIG) {
-    if (!fs.existsSync(keysFile)) {
-      throw new Error(`飞书配置文件不存在: ${keysFile}`);
-    }
-    FEISHU_CONFIG = JSON.parse(fs.readFileSync(keysFile, 'utf-8'));
-  }
-  return FEISHU_CONFIG;
-}
 
 let feishuAccessToken = null;
 
@@ -82,8 +70,8 @@ async function getFeishuAccessToken() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        app_id: loadFeishuConfig().appId,
-        app_secret: loadFeishuConfig().appSecret
+        app_id: secretRequire('msg.appId', 'FEISHU_MSG_APP_ID'),
+        app_secret: secretRequire('msg.appSecret', 'FEISHU_MSG_APP_SECRET')
       })
     });
     
@@ -112,7 +100,7 @@ async function sendFeishuMessage(content) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        receive_id: loadFeishuConfig().recipient,
+        receive_id: secretRequire('recipient', 'FEISHU_RECIPIENT'),
         msg_type: 'text',
         content: JSON.stringify({ text: content })
       })
@@ -180,11 +168,8 @@ async function main() {
   log('开始检查提醒...');
   
   try {
-    const calendarPath = path.join(dataDir, 'feishu-calendar.json');
-    if (fs.existsSync(calendarPath)) {
-      await ensureValidCalendarToken();
-      log('日历 token 刷新成功');
-    }
+    await ensureValidCalendarToken();
+    log('日历 token 刷新成功');
   } catch (e) {
     log(`WARN: 日历 token 刷新失败（不影响提醒发送）: ${e.message}`);
   }

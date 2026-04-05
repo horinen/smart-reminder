@@ -17,11 +17,12 @@
  * 
  * 输出:
  *   - stdout: 授权状态和凭证信息
- *   - 文件: ../data/feishu-calendar.json (calendarToken 字段)
+ *   - 文件: ../data/feishu-config.json (calendarToken 字段)
  * 
  * 所需权限:
  *   - calendar:calendar:readonly
  *   - calendar:calendar
+ *   - bitable:app
  * 
  * 测试:
  *   - [x] start 生成授权链接
@@ -34,10 +35,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { URL } from 'url';
+import { getCalendarAppId, getCalendarAppSecret, loadCalendarToken, saveCalendarToken } from './lib/feishu-calendar-token.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
-const keysFile = path.join(dataDir, 'feishu-calendar.json');
 
 const FEISHU_AUTH_URL = 'https://open.feishu.cn/open-apis/authen/v1/authorize';
 const FEISHU_TOKEN_URL = 'https://open.feishu.cn/open-apis/authen/v1/oidc/access_token';
@@ -45,22 +46,12 @@ const FEISHU_REFRESH_URL = 'https://open.feishu.cn/open-apis/authen/v1/oidc/refr
 
 const SCOPES = ['calendar:calendar:readonly', 'calendar:calendar', 'bitable:app'];
 
-function loadConfig() {
-  if (!fs.existsSync(keysFile)) {
-    throw new Error(`飞书日历配置文件不存在: ${keysFile}\n请复制 feishu-calendar.example.json 为 feishu-calendar.json 并填写配置`);
-  }
-  return JSON.parse(fs.readFileSync(keysFile, 'utf-8'));
-}
-
 function loadToken() {
-  const config = loadConfig();
-  return config.calendarToken || null;
+  return loadCalendarToken();
 }
 
 function saveToken(token) {
-  const config = loadConfig();
-  config.calendarToken = token;
-  fs.writeFileSync(keysFile, JSON.stringify(config, null, 2));
+  saveCalendarToken(token);
 }
 
 function parseArgs() {
@@ -80,14 +71,12 @@ function parseArgs() {
 }
 
 async function getTenantAccessToken() {
-  const config = loadConfig();
-  
   const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      app_id: config.appId,
-      app_secret: config.appSecret
+      app_id: getCalendarAppId(),
+      app_secret: getCalendarAppSecret()
     })
   });
   
@@ -101,11 +90,10 @@ async function getTenantAccessToken() {
 }
 
 function actionStart(params) {
-  const config = loadConfig();
   const redirectUri = params['redirect-uri'] || 'http://localhost:3000/callback';
   
   const authUrl = new URL(FEISHU_AUTH_URL);
-  authUrl.searchParams.set('app_id', config.appId);
+  authUrl.searchParams.set('app_id', getCalendarAppId());
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', Date.now().toString());
   authUrl.searchParams.set('scope', SCOPES.join(' '));
@@ -175,7 +163,7 @@ async function actionCallback(params) {
     console.log('✅ 授权成功！\n');
     console.log(`- Open ID: ${tokenData.openId}`);
     console.log(`- 过期时间: ${tokenData.expiresAt}`);
-    console.log(`\n凭证已保存到: ${keysFile}`);
+    console.log(`\n凭证已保存到配置文件`);
   } catch (e) {
     console.error(`❌ 授权失败: ${e.message}`);
     process.exit(1);
@@ -197,7 +185,7 @@ async function actionStatus() {
   const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
   
   console.log('## 授权状态\n');
-  console.log(`- Open ID: ${token.openId}`);
+  if (token.openId) console.log(`- Open ID: ${token.openId}`);
   console.log(`- 创建时间: ${token.createdAt}`);
   console.log(`- 过期时间: ${token.expiresAt}`);
   console.log(`- 状态: ${isExpired ? '❌ 已过期' : `✅ 有效 (剩余 ${remainingHours} 小时)`}`);

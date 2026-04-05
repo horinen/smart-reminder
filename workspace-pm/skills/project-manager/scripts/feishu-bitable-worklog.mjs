@@ -7,48 +7,56 @@
  * 
  * 输入:
  *   --action: add | list | report
- *   --date: 工作日期 YYYY-MM-DD（add 可选，默认今天）
- *   --project: 项目 ID 或名称（add 可选）
- *   --deliverable: 成果物 ID 或名称（add 可选）
- *   --content: 工作内容（add 必填）
- *   --duration: 时长（分钟）（add 必填）
- *   --week: 周报（report 用，格式 YYYY-WW 或 last）
- *   --month: 月报（report 用，格式 YYYY-MM 或 last）
+ * 
+ * 各 action 参数:
+ * 
+ *   add:
+ *     --content "工作内容"          必填
+ *     --duration "时长"             可选，默认 60 分钟
+ *         支持格式: "2小时"、"30分钟"、"1.5小时"、纯数字(分钟)
+ *     --date YYYY-MM-DD             可选，默认今天
+ *     --project "项目名|ID"         可选，按名称或 ID 关联项目
+ *     --deliverable "成果物名|ID"   可选，按名称或 ID 关联成果物
+ * 
+ *   list:
+ *     （无参数，显示最近 20 条，按日期倒序）
+ * 
+ *   report:
+ *     --week last                   生成上周周报
+ *     --month last                  生成上月月报
+ *     （都不传则默认生成上周周报）
  * 
  * 输出:
  *   stdout: 操作结果（Markdown 格式）
- * 
- * 表字段映射:
- *   日期 -> date (date)
- *   项目 -> project (link to Projects)
- *   成果物 -> deliverable (link to Deliverables)
- *   内容 -> content (multiLineText)
- *   时长 -> duration (number, minutes)
  */
 
 import { 
   listRecords, 
   createRecord,
-  parseFieldValue
+  parseFieldValue,
+  getWorklogTableId,
+  getProjectTableId,
+  getDeliverableTableId
 } from './lib/feishu-bitable.mjs';
-import { loadConfig } from './lib/feishu-calendar-token.mjs';
 
 function getTableId() {
-  const config = loadConfig();
-  if (!config.bitableWorklogTableId) {
-    throw new Error('未配置工作记录表 ID，请在 feishu-calendar.json 中添加 bitableWorklogTableId 字段');
+  return getWorklogTableId();
+}
+
+function getProjectTableIdInternal() {
+  try {
+    return getProjectTableId();
+  } catch {
+    return null;
   }
-  return config.bitableWorklogTableId;
 }
 
-function getProjectTableId() {
-  const config = loadConfig();
-  return config.bitableProjectTableId;
-}
-
-function getDeliverableTableId() {
-  const config = loadConfig();
-  return config.bitableDeliverableTableId;
+function getDeliverableTableIdInternal() {
+  try {
+    return getDeliverableTableId();
+  } catch {
+    return null;
+  }
 }
 
 function parseArgs() {
@@ -85,7 +93,7 @@ function parseRecord(record) {
 }
 
 async function findProjectId(projectNameOrId) {
-  const projectTableId = getProjectTableId();
+  const projectTableId = getProjectTableIdInternal();
   if (!projectTableId) return null;
   
   const result = await listRecords(projectTableId);
@@ -103,7 +111,7 @@ async function findProjectId(projectNameOrId) {
 }
 
 async function findDeliverableId(deliverableNameOrId) {
-  const deliverableTableId = getDeliverableTableId();
+  const deliverableTableId = getDeliverableTableIdInternal();
   if (!deliverableTableId) return null;
   
   const result = await listRecords(deliverableTableId);
@@ -123,9 +131,6 @@ async function findDeliverableId(deliverableNameOrId) {
 function parseDuration(input) {
   if (typeof input === 'number') return input;
   
-  const num = parseInt(input, 10);
-  if (!isNaN(num)) return num;
-  
   const hoursMatch = input.match(/(\d+(?:\.\d+)?)\s*小时?/);
   if (hoursMatch) {
     return Math.round(parseFloat(hoursMatch[1]) * 60);
@@ -135,6 +140,9 @@ function parseDuration(input) {
   if (minsMatch) {
     return parseInt(minsMatch[1], 10);
   }
+  
+  const num = parseInt(input, 10);
+  if (!isNaN(num)) return num;
   
   return 60;
 }

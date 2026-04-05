@@ -11,16 +11,14 @@
  * 
  * 输出:
  *   - stdout: 创建结果和配置信息
- *   - 更新 feishu-calendar.json 中的 bitableAppToken 和各表 ID
+ *   - 文件: ../data/feishu-config.json (bitable 字段自动写入)
  */
 
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { ensureValidCalendarToken, loadConfig, getConfigPath } from './lib/feishu-calendar-token.mjs';
+import { ensureValidCalendarToken, loadConfig, saveConfig, configGet } from './lib/feishu-calendar-token.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, '../data');
 
 const BITABLE_API_BASE = 'https://open.feishu.cn/open-apis/bitable/v1';
 
@@ -74,9 +72,17 @@ async function createTable(appToken, tableName, fields) {
   return result.table_id;
 }
 
-function saveConfig(config) {
-  const configFile = getConfigPath();
-  fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
+function saveBitableConfig(appToken, projectTableId, deliverableTableId, worklogTableId) {
+  const config = loadConfig();
+  config.bitable = {
+    appToken,
+    tables: {
+      project: projectTableId,
+      deliverable: deliverableTableId,
+      worklog: worklogTableId
+    }
+  };
+  saveConfig(config);
 }
 
 function parseArgs() {
@@ -127,11 +133,10 @@ async function createField(appToken, tableId, field) {
 }
 
 async function actionCreateTables(params) {
-  const config = loadConfig();
-  const appToken = params['app-token'] || config.bitableAppToken;
+  const appToken = params['app-token'] || configGet('bitable.appToken');
   
   if (!appToken) {
-    console.error('❌ 请提供 --app-token 或先配置 bitableAppToken');
+    console.error('❌ 请提供 --app-token 或在配置文件中设置 bitable.appToken');
     process.exit(1);
   }
   
@@ -192,15 +197,10 @@ async function actionCreateTables(params) {
       }
     }
     
-    config.bitableAppToken = appToken;
-    config.bitableProjectTableId = projectTableId;
-    config.bitableDeliverableTableId = deliverableTableId;
-    config.bitableWorklogTableId = worklogTableId;
-    saveConfig(config);
+    saveBitableConfig(appToken, projectTableId, deliverableTableId, worklogTableId);
+    console.log(`\n✅ 配置已写入 feishu-config.json`);
     
-    console.log(`\n✅ 配置已保存到 feishu-calendar.json\n`);
-    console.log(`---\n`);
-    console.log(`**多维表格地址**: https://feishu.cn/base/${appToken}`);
+    console.log(`\n**多维表格地址**: https://feishu.cn/base/${appToken}`);
     
   } catch (e) {
     console.error(`\n❌ 创建失败: ${e.message}`);
@@ -295,16 +295,10 @@ async function actionInit(params) {
     const worklogTableId = await createTable(appToken, '工作记录表', worklogFields);
     console.log(`✅ 工作记录表创建成功 (ID: ${worklogTableId})`);
     
-    const config = loadConfig();
-    config.bitableAppToken = appToken;
-    config.bitableProjectTableId = projectTableId;
-    config.bitableDeliverableTableId = deliverableTableId;
-    config.bitableWorklogTableId = worklogTableId;
-    saveConfig(config);
+    saveBitableConfig(appToken, projectTableId, deliverableTableId, worklogTableId);
+    console.log(`\n✅ 配置已写入 feishu-config.json`);
     
-    console.log(`\n✅ 配置已保存到 feishu-calendar.json\n`);
-    console.log(`---\n`);
-    console.log(`**多维表格地址**: https://feishu.cn/base/${appToken}`);
+    console.log(`\n**多维表格地址**: https://feishu.cn/base/${appToken}`);
     
   } catch (e) {
     console.error(`\n❌ 创建失败: ${e.message}`);

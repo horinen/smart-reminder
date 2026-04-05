@@ -41,29 +41,14 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { loadCalendarToken } from './lib/feishu-calendar-token.mjs';
+import { parseArgs, ensureValidToken, inferTypeFromColor, getPrimaryCalendar, TYPE_TO_EMOJI } from './lib/feishu-calendar-common.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, '../data');
 const schedulesFile = path.join(dataDir, 'schedules.json');
-const keysFile = path.join(dataDir, 'feishu-calendar.json');
 
-const FEISHU_CALENDAR_LIST_URL = 'https://open.feishu.cn/open-apis/calendar/v4/calendars';
 const FEISHU_CALENDAR_EVENTS_URL = 'https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/search';
-
-function loadConfig() {
-  if (!fs.existsSync(keysFile)) {
-    throw new Error(`飞书日历配置文件不存在: ${keysFile}\n请复制 feishu-calendar.example.json 为 feishu-calendar.json 并填写配置`);
-  }
-  return JSON.parse(fs.readFileSync(keysFile, 'utf-8'));
-}
-
-function loadToken() {
-  const config = loadConfig();
-  if (!config.calendarToken) {
-    throw new Error('未找到飞书日历授权信息，请先运行: node feishu-calendar-auth.mjs --action start');
-  }
-  return config.calendarToken;
-}
 
 function loadSchedules() {
   if (!fs.existsSync(schedulesFile)) {
@@ -74,57 +59,6 @@ function loadSchedules() {
 
 function saveSchedules(data) {
   fs.writeFileSync(schedulesFile, JSON.stringify(data, null, 2));
-}
-
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const params = {};
-  
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--')) {
-      const key = args[i].substring(2);
-      const value = args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true;
-      params[key] = value;
-      i++;
-    }
-  }
-  
-  return params;
-}
-
-function ensureValidToken(token) {
-  const expiresAt = new Date(token.expiresAt);
-  const now = new Date();
-  
-  if (now >= expiresAt) {
-    throw new Error('授权已过期，请运行: node feishu-calendar-auth.mjs --action refresh');
-  }
-  
-  return token.accessToken;
-}
-
-function inferTypeFromColor(event) {
-  const color = event.color;
-  
-  // 数字颜色值
-  const COLOR_IMPORTANT = -8388608;    // 深红色 0xFF800000
-  const COLOR_ROUTINE = -11034625;     // 蓝色 0xFF57B7E3
-  const COLOR_FREE = -16711936;        // 绿色 0xFF00FF00
-  
-  if (typeof color === 'number') {
-    if (color === COLOR_IMPORTANT) return 'important';
-    if (color === COLOR_FREE) return 'free';
-    return 'routine';
-  }
-  
-  // 字符串颜色值（兼容旧逻辑）
-  if (color === 'red' || color === '#FF4D4F' || (typeof color === 'string' && color.includes('red'))) {
-    return 'important';
-  }
-  if (color === 'green' || color === '#52C41A' || (typeof color === 'string' && color.includes('green'))) {
-    return 'free';
-  }
-  return 'routine';
 }
 
 function mapEventToSchedule(event) {
@@ -144,48 +78,6 @@ function mapEventToSchedule(event) {
     feishuEventId: event.event_id || event.id,
     syncedAt: new Date().toISOString()
   };
-}
-
-async function getTenantAccessToken() {
-  const config = loadConfig();
-  
-  const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      app_id: config.appId,
-      app_secret: config.appSecret
-    })
-  });
-  
-  const data = await response.json();
-  
-  if (data.code !== 0) {
-    throw new Error(`获取 tenant_access_token 失败: ${data.msg}`);
-  }
-  
-  return data.tenant_access_token;
-}
-
-async function getPrimaryCalendar(accessToken) {
-  const response = await fetch(FEISHU_CALENDAR_LIST_URL, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  
-  const data = await response.json();
-  
-  if (data.code !== 0) {
-    throw new Error(`获取日历列表失败: ${data.msg}`);
-  }
-  
-  const calendars = data.data?.calendar_list || data.data?.calendars || [];
-  const primary = calendars.find(c => c.type === 'primary');
-  
-  return primary ? primary.calendar_id : (calendars[0]?.calendar_id || null);
 }
 
 async function fetchCalendarEvents(accessToken, calendarId, startTime, endTime) {
@@ -215,7 +107,7 @@ async function fetchCalendarEvents(accessToken, calendarId, startTime, endTime) 
 }
 
 async function actionFetch(params) {
-  const token = loadToken();
+  const token = loadCalendarToken();
   const userAccessToken = ensureValidToken(token);
   
   const startTime = params.start ? new Date(params.start) : new Date();
@@ -253,7 +145,7 @@ async function actionFetch(params) {
 }
 
 async function actionSync(params) {
-  const token = loadToken();
+  const token = loadCalendarToken();
   const userAccessToken = ensureValidToken(token);
   
   const startTime = new Date();
